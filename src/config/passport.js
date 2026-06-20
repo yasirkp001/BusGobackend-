@@ -4,6 +4,11 @@ import { User } from '../data/db.js';
 import { signToken } from '../middleware/auth.js';
 
 export const initPassport = () => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.warn('⚠ Google OAuth credentials not found in env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET). Google Login disabled.');
+    return;
+  }
+
   passport.use(
     new GoogleStrategy(
       {
