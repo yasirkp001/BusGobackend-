@@ -32,25 +32,36 @@ const allowedOrigins = process.env.CLIENT_ORIGINS
   ? process.env.CLIENT_ORIGINS.split(',').map((o) => o.trim())
   : process.env.CLIENT_ORIGIN
     ? [process.env.CLIENT_ORIGIN, process.env.ADMIN_ORIGIN].filter(Boolean)
-    : true;
+    : [];
 
-// Explicit CORS handler — must be before all routes so preflight OPTIONS
-// requests are answered correctly from any origin in the allow-list.
+// In development with no origins configured, allow everything
+const isDev = process.env.NODE_ENV !== 'production';
+
+// CORS — must be declared before all routes so OPTIONS preflight is handled
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, mobile apps, Render health checks)
+    // Allow requests with no origin (server-to-server, curl, health checks)
     if (!origin) return callback(null, true);
-    if (allowedOrigins === true) return callback(null, true);
+    // Dev mode: allow all
+    if (isDev && allowedOrigins.length === 0) return callback(null, true);
+    // Exact match from env list
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
+    // Always allow any *.vercel.app or localhost in any port
+    if (
+      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
+      /^http:\/\/localhost(:\d+)?$/.test(origin)
+    ) return callback(null, true);
+    callback(new Error(`CORS: origin "${origin}" not allowed`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Respond to all preflight OPTIONS requests immediately
-app.options('*', cors());
+// Answer all preflight OPTIONS requests immediately
+app.options('*', (req, res) => {
+  res.sendStatus(204);
+});
 app.use(express.json());
 app.use(morgan('dev'));
 
