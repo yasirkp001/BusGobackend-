@@ -2,9 +2,18 @@ import { Server } from 'socket.io';
 
 let io = null;
 
-export const initSocket = (httpServer, allowedOrigins) => {
+export const initSocket = (httpServer, isOriginAllowed) => {
   io = new Server(httpServer, {
-    cors: { origin: allowedOrigins, credentials: true },
+    cors: {
+      origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      credentials: true,
+    },
     transports: ['websocket', 'polling'],
   });
 

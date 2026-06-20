@@ -37,21 +37,29 @@ const allowedOrigins = process.env.CLIENT_ORIGINS
 // In development with no origins configured, allow everything
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Origin validator helper
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  // Dev mode: allow all if no allowed origins configured
+  if (isDev && allowedOrigins.length === 0) return true;
+  // Exact match from env list
+  if (allowedOrigins.includes(origin)) return true;
+  // Always allow any *.vercel.app or localhost in any port
+  if (
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(origin)
+  ) return true;
+  return false;
+};
+
 // CORS — must be declared before all routes so OPTIONS preflight is handled
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (server-to-server, curl, health checks)
-    if (!origin) return callback(null, true);
-    // Dev mode: allow all
-    if (isDev && allowedOrigins.length === 0) return callback(null, true);
-    // Exact match from env list
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Always allow any *.vercel.app or localhost in any port
-    if (
-      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
-      /^http:\/\/localhost(:\d+)?$/.test(origin)
-    ) return callback(null, true);
-    callback(new Error(`CORS: origin "${origin}" not allowed`));
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -69,8 +77,8 @@ app.use(morgan('dev'));
 initPassport();
 app.use(passport.initialize());
 
-// Attach Socket.IO to the HTTP server
-initSocket(httpServer, allowedOrigins);
+// Attach Socket.IO to the HTTP server with origin validator
+initSocket(httpServer, isOriginAllowed);
 
 app.get('/', (req, res) => {
   res.json({ name: 'BusGo API', version: '1.0.0', status: 'running', docs: '/api/health' });
