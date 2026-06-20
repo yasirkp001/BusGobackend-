@@ -40,16 +40,20 @@ const isDev = process.env.NODE_ENV !== 'production';
 // Origin validator helper
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
+  let allowed = false;
   // Dev mode: allow all if no allowed origins configured
-  if (isDev && allowedOrigins.length === 0) return true;
-  // Exact match from env list
-  if (allowedOrigins.includes(origin)) return true;
-  // Always allow any *.vercel.app or localhost in any port
-  if (
+  if (isDev && allowedOrigins.length === 0) {
+    allowed = true;
+  } else if (allowedOrigins.includes(origin)) {
+    allowed = true;
+  } else if (
     /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
     /^http:\/\/localhost(:\d+)?$/.test(origin)
-  ) return true;
-  return false;
+  ) {
+    allowed = true;
+  }
+  console.log(`[CORS] Origin: ${origin} | Allowed: ${allowed}`);
+  return allowed;
 };
 
 // CORS — must be declared before all routes so OPTIONS preflight is handled
