@@ -34,7 +34,23 @@ const allowedOrigins = process.env.CLIENT_ORIGINS
     ? [process.env.CLIENT_ORIGIN, process.env.ADMIN_ORIGIN].filter(Boolean)
     : true;
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+// Explicit CORS handler — must be before all routes so preflight OPTIONS
+// requests are answered correctly from any origin in the allow-list.
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, mobile apps, Render health checks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins === true) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Respond to all preflight OPTIONS requests immediately
+app.options('*', cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
